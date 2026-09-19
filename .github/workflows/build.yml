@@ -1,0 +1,43 @@
+name: Build APK
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.35.3"
+          channel: stable
+          cache: true
+
+      # Genera automaticamente Android/Gradle compatibili con Flutter.
+      - name: Create Android project
+        run: flutter create --platforms=android --project-name gestione_familiare --org com.gestione .
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Generate app icon
+        run: dart run flutter_launcher_icons
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos
+
+      - name: Build APK
+        run: flutter build apk --release
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: gestione-familiare-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
