@@ -9,18 +9,13 @@ String dataIt(DateTime d) =>
     '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
 
 String meseIt(DateTime d) {
-  const mesi = [
-    'GENNAIO', 'FEBBRAIO', 'MARZO', 'APRILE', 'MAGGIO', 'GIUGNO',
-    'LUGLIO', 'AGOSTO', 'SETTEMBRE', 'OTTOBRE', 'NOVEMBRE', 'DICEMBRE'
-  ];
+  const mesi = ['GENNAIO','FEBBRAIO','MARZO','APRILE','MAGGIO','GIUGNO',
+    'LUGLIO','AGOSTO','SETTEMBRE','OTTOBRE','NOVEMBRE','DICEMBRE'];
   return '${mesi[d.month - 1]} ${d.year}';
 }
 
-
-void main() {
-  WidgetsFlutterBinding.ensureInitialized();
-  runApp(const GestioneFamiliareApp());
-}
+String euro(double n) =>
+    '${n.toStringAsFixed(2).replaceAll('.', ',')} €';
 
 class Movimento {
   final String id;
@@ -48,10 +43,19 @@ class Movimento {
   };
 
   factory Movimento.fromJson(Map<String, dynamic> j) => Movimento(
-    id: j['id'], data: DateTime.parse(j['data']), entrata: j['entrata'],
-    categoria: j['categoria'], descrizione: j['descrizione'] ?? '',
-    importo: (j['importo'] as num).toDouble(), metodo: j['metodo'],
+    id: j['id'].toString(),
+    data: DateTime.parse(j['data'].toString()),
+    entrata: j['entrata'] == true,
+    categoria: (j['categoria'] ?? 'Altre').toString(),
+    descrizione: (j['descrizione'] ?? '').toString(),
+    importo: (j['importo'] as num).toDouble(),
+    metodo: (j['metodo'] ?? 'Contanti').toString(),
   );
+}
+
+void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  runApp(const GestioneFamiliareApp());
 }
 
 class GestioneFamiliareApp extends StatefulWidget {
@@ -74,26 +78,19 @@ class _AppState extends State<GestioneFamiliareApp> {
       final p = await SharedPreferences.getInstance();
       final raw = p.getString('movimenti') ?? '[]';
       final decoded = jsonDecode(raw) as List<dynamic>;
-      final caricati = decoded
-          .map((e) => Movimento.fromJson(Map<String, dynamic>.from(e as Map)))
-          .toList();
+      final caricati = decoded.map((e) =>
+        Movimento.fromJson(Map<String, dynamic>.from(e as Map))).toList();
       if (!mounted) return;
-      setState(() {
-        movimenti = caricati;
-        _caricato = true;
-      });
+      setState(() { movimenti = caricati; _caricato = true; });
     } catch (_) {
-      if (!mounted) return;
-      setState(() => _caricato = true);
+      if (mounted) setState(() => _caricato = true);
     }
   }
 
   Future<void> _salva() async {
     final p = await SharedPreferences.getInstance();
-    await p.setString(
-      'movimenti',
-      jsonEncode(movimenti.map((e) => e.toJson()).toList()),
-    );
+    await p.setString('movimenti',
+      jsonEncode(movimenti.map((e) => e.toJson()).toList()));
   }
 
   Future<void> _aggiungi(Movimento m) async {
@@ -106,75 +103,74 @@ class _AppState extends State<GestioneFamiliareApp> {
     await _salva();
   }
 
-  Future<void> _modifica(Movimento nuovo) async {
-    final i = movimenti.indexWhere((m) => m.id == nuovo.id);
+  Future<void> _modifica(Movimento m) async {
+    final i = movimenti.indexWhere((x) => x.id == m.id);
     if (i >= 0) {
-      setState(() => movimenti[i] = nuovo);
+      setState(() => movimenti[i] = m);
       await _salva();
     }
   }
 
   Future<void> _esporta() async {
     final dati = jsonEncode({
-      'app': 'Gestione Familiare',
-      'versione': 1,
+      'app': 'Gestione Familiare', 'versione': 2,
       'movimenti': movimenti.map((e) => e.toJson()).toList(),
     });
     final nome = 'gestione_familiare_backup_${DateTime.now().year}${DateTime.now().month.toString().padLeft(2, '0')}${DateTime.now().day.toString().padLeft(2, '0')}.json';
-    await Share.shareXFiles(
-      [XFile.fromData(Uint8List.fromList(utf8.encode(dati)), name: nome, mimeType: 'application/json')],
-      text: 'Backup dati Gestione Familiare',
-    );
+    await Share.shareXFiles([
+      XFile.fromData(Uint8List.fromList(utf8.encode(dati)),
+        name: nome, mimeType: 'application/json')
+    ], text: 'Backup dati Gestione Familiare');
   }
 
   Future<void> _importa() async {
     final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['json'],
-      withData: true,
-    );
+      type: FileType.custom, allowedExtensions: ['json'], withData: true);
     if (result == null || result.files.single.bytes == null) return;
     try {
       final testo = utf8.decode(result.files.single.bytes!);
       final dati = jsonDecode(testo) as Map<String, dynamic>;
       final lista = (dati['movimenti'] as List<dynamic>? ?? [])
-          .map((e) => Movimento.fromJson(Map<String, dynamic>.from(e as Map)))
-          .toList();
+        .map((e) => Movimento.fromJson(Map<String, dynamic>.from(e as Map)))
+        .toList();
       setState(() => movimenti = lista);
       await _salva();
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Importati ${lista.length} movimenti.')),
-      );
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Importati ${lista.length} movimenti.')));
     } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('File di backup non valido.')),
-      );
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('File di backup non valido.')));
     }
   }
 
-  @override Widget build(BuildContext context) {
+  @override
+  Widget build(BuildContext context) {
+    final scheme = ColorScheme.fromSeed(seedColor: const Color(0xff5b4b9a));
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Gestione Familiare',
       theme: ThemeData(
         useMaterial3: true,
-        colorSchemeSeed: Colors.indigo,
-        scaffoldBackgroundColor: const Color(0xfff7f7f7),
-        appBarTheme: const AppBarTheme(centerTitle: false),
-        cardTheme: const CardThemeData(margin: EdgeInsets.symmetric(horizontal: 16, vertical: 6)),
+        colorScheme: scheme,
+        scaffoldBackgroundColor: const Color(0xfff4f2f8),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Colors.transparent, elevation: 0, centerTitle: false),
+        cardTheme: CardThemeData(
+          elevation: 0,
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true, fillColor: Colors.white,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+        ),
       ),
       home: !_caricato
-          ? const Scaffold(body: Center(child: CircularProgressIndicator()))
-          : HomePage(
-              movimenti: movimenti,
-              onAdd: _aggiungi,
-              onDelete: _elimina,
-              onEdit: _modifica,
-              onExport: _esporta,
-              onImport: _importa,
-            ),
+        ? const Scaffold(body: Center(child: CircularProgressIndicator()))
+        : HomePage(
+          movimenti: movimenti, onAdd: _aggiungi, onDelete: _elimina,
+          onEdit: _modifica, onExport: _esporta, onImport: _importa),
     );
   }
 }
@@ -186,187 +182,431 @@ class HomePage extends StatefulWidget {
   final void Function(Movimento) onEdit;
   final Future<void> Function() onExport;
   final Future<void> Function() onImport;
-  const HomePage({super.key, required this.movimenti, required this.onAdd, required this.onDelete, required this.onEdit, required this.onExport, required this.onImport});
+
+  const HomePage({super.key, required this.movimenti, required this.onAdd,
+    required this.onDelete, required this.onEdit, required this.onExport,
+    required this.onImport});
+
   @override State<HomePage> createState() => _HomePageState();
 }
 
 class _HomePageState extends State<HomePage> {
   DateTime mese = DateTime(DateTime.now().year, DateTime.now().month);
 
-  List<Movimento> get delMese => widget.movimenti.where((m) =>
-    m.data.year == mese.year && m.data.month == mese.month).toList()
-    ..sort((a,b) => b.data.compareTo(a.data));
+  List<Movimento> get delMese {
+    final list = widget.movimenti.where((m) =>
+      m.data.year == mese.year && m.data.month == mese.month).toList();
+    list.sort((a, b) => b.data.compareTo(a.data));
+    return list;
+  }
 
-  double totale(bool entrata, String metodo) =>
-    delMese.where((m) => m.entrata == entrata && m.metodo == metodo)
-      .fold(0, (s,m) => s + m.importo);
+  List<Movimento> get precedenti => widget.movimenti.where((m) =>
+    m.data.year < mese.year ||
+    (m.data.year == mese.year && m.data.month < mese.month)).toList();
 
-  double get saldo => delMese.fold(0, (s,m) => s + (m.entrata ? m.importo : -m.importo));
+  double somma(Iterable<Movimento> ms, bool entrata) =>
+    ms.where((m) => m.entrata == entrata).fold(0.0, (s, m) => s + m.importo);
 
-  String euro(double n) => '${n.toStringAsFixed(2).replaceAll('.', ',')} €';
+  double get entrate => somma(delMese, true);
+  double get uscite => somma(delMese, false);
+  double get saldoMese => entrate - uscite;
 
-  Future<void> _nuovo({bool entrata = true}) async {
-    final m = await Navigator.push<Movimento>(context, MaterialPageRoute(
-      builder: (_) => MovimentoPage(entrata: entrata)));
+  // Il saldo di chiusura di ogni mese diventa automaticamente il saldo
+  // iniziale del mese successivo.
+  double get saldoIniziale => somma(precedenti, true) - somma(precedenti, false);
+  double get saldoFinale => saldoIniziale + saldoMese;
+
+  double get contanti => widget.movimenti.where((m) => m.metodo == 'Contanti')
+      .fold(0.0, (s, m) => s + (m.entrata ? m.importo : -m.importo));
+  double get banca => widget.movimenti.where((m) => m.metodo == 'Banca')
+      .fold(0.0, (s, m) => s + (m.entrata ? m.importo : -m.importo));
+
+  Map<String, double> categorie(bool entrata) {
+    final map = <String, double>{};
+    for (final m in delMese.where((m) => m.entrata == entrata)) {
+      map[m.categoria] = (map[m.categoria] ?? 0) + m.importo;
+    }
+    return map;
+  }
+
+  Future<void> _nuovo({required bool entrata}) async {
+    final m = await Navigator.push<Movimento>(context,
+      MaterialPageRoute(builder: (_) => MovimentoPage(entrata: entrata)));
     if (m != null) widget.onAdd(m);
   }
 
   Future<void> _edit(Movimento old) async {
-    final m = await Navigator.push<Movimento>(context, MaterialPageRoute(
-      builder: (_) => MovimentoPage(entrata: old.entrata, movimento: old)));
+    final m = await Navigator.push<Movimento>(context,
+      MaterialPageRoute(builder: (_) =>
+        MovimentoPage(entrata: old.entrata, movimento: old)));
     if (m != null) widget.onEdit(m);
   }
 
-  @override Widget build(BuildContext context) {
-    final contanti = totale(true,'Contanti') - totale(false,'Contanti');
-    final banca = totale(true,'Banca') - totale(false,'Banca');
+  void _cambiaMese(int delta) =>
+    setState(() => mese = DateTime(mese.year, mese.month + delta));
+
+  @override
+  Widget build(BuildContext context) {
+    final entrateCat = categorie(true);
+    final usciteCat = categorie(false);
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Gestione Familiare'), actions: [
-        PopupMenuButton<String>(
-          tooltip: 'Dati',
-          onSelected: (v) {
-            if (v == 'export') widget.onExport();
-            if (v == 'import') widget.onImport();
-          },
-          itemBuilder: (_) => const [
-            PopupMenuItem(value: 'export', child: Text('Esporta dati')),
-            PopupMenuItem(value: 'import', child: Text('Importa dati')),
-          ],
-        ),
-        IconButton(onPressed: () async {
-          final m = await showDatePicker(context: context, initialDate: mese,
-            firstDate: DateTime(2020), lastDate: DateTime(2100));
-          if (m != null) setState(() => mese = DateTime(m.year,m.month));
-        }, icon: const Icon(Icons.calendar_month))
-      ]),
+      appBar: AppBar(
+        title: const Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('Gestione Familiare',
+            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 22)),
+          Text('Il tuo bilancio, mese dopo mese',
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w400)),
+        ]),
+        actions: [
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert),
+            onSelected: (v) {
+              if (v == 'export') widget.onExport();
+              if (v == 'import') widget.onImport();
+            },
+            itemBuilder: (_) => const [
+              PopupMenuItem(value: 'export',
+                child: ListTile(leading: Icon(Icons.upload_file), title: Text('Esporta dati'))),
+              PopupMenuItem(value: 'import',
+                child: ListTile(leading: Icon(Icons.download), title: Text('Importa dati'))),
+            ]),
+        ],
+      ),
       body: Column(children: [
-        Padding(padding: const EdgeInsets.fromLTRB(16, 8, 16, 4), child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        _meseBar(),
+        Expanded(child: ListView(
+          padding: const EdgeInsets.only(bottom: 24),
           children: [
-            IconButton(onPressed: () => setState(() => mese=DateTime(mese.year,mese.month-1)), icon: const Icon(Icons.chevron_left)),
-            Text(meseIt(mese),
-              style: const TextStyle(fontSize:18,fontWeight:FontWeight.w600)),
-            IconButton(onPressed: () => setState(() => mese=DateTime(mese.year,mese.month+1)), icon: const Icon(Icons.chevron_right)),
+            _riepilogo(),
+            _azioni(),
+            _sezioneCategorie('ENTRATE PER CATEGORIA', entrateCat, true),
+            _sezioneCategorie('SPESE PER CATEGORIA', usciteCat, false),
+            _movimentiSection(),
           ],
         )),
-        Card(child: Padding(padding: const EdgeInsets.all(18), child: Column(children: [
-          const Text('SALDO DEL MESE', style: TextStyle(fontSize:13,letterSpacing:1)),
-          const SizedBox(height:6),
-          Text(euro(saldo), style: TextStyle(fontSize:30,fontWeight:FontWeight.bold,
-            color: saldo >= 0 ? Colors.green.shade700 : Colors.red.shade700)),
-          const SizedBox(height:14),
-          Row(mainAxisAlignment:MainAxisAlignment.spaceAround, children:[
-            _saldoBox('Contanti',contanti),
-            _saldoBox('Banca',banca),
-          ])
-        ]))),
-        Padding(padding: const EdgeInsets.fromLTRB(16, 6, 16, 4), child: Row(children:[
-          Expanded(child: FilledButton.icon(onPressed:()=>_nuovo(entrata:true),
-            icon:const Icon(Icons.add),label:const Text('Entrata'))),
-          const SizedBox(width:10),
-          Expanded(child: OutlinedButton.icon(onPressed:()=>_nuovo(entrata:false),
-            icon:const Icon(Icons.remove),label:const Text('Uscita'))),
-        ])),
-        const Padding(padding: EdgeInsets.fromLTRB(16,8,16,4), child: Align(
-          alignment: Alignment.centerLeft, child: Text('Movimenti',style:TextStyle(fontSize:18,fontWeight:FontWeight.w600)))),
-        Expanded(child: delMese.isEmpty
-          ? const Center(child: Text('Nessun movimento per questo mese.'))
-          : ListView.builder(itemCount:delMese.length,itemBuilder:(c,i){
-            final m=delMese[i];
-            return Dismissible(key:ValueKey(m.id),background:Container(color:Colors.red,alignment:Alignment.centerLeft,padding:const EdgeInsets.only(left:20),child:const Icon(Icons.delete,color:Colors.white)),
-              secondaryBackground:Container(color:Colors.red,alignment:Alignment.centerRight,padding:const EdgeInsets.only(right:20),child:const Icon(Icons.delete,color:Colors.white)),
-              onDismissed:(_)=>widget.onDelete(m.id),
-              child: Card(child: ListTile(onTap:()=>_edit(m),
-                leading:CircleAvatar(child:Icon(m.entrata?Icons.arrow_downward:Icons.arrow_upward)),
-                title:Text(m.categoria,style:const TextStyle(fontWeight:FontWeight.w600)),
-                subtitle:Text('${dataIt(m.data)} • ${m.metodo}${m.descrizione.isEmpty?'':' • ${m.descrizione}'}'),
-                trailing:Text('${m.entrata?'+':'-'} ${euro(m.importo)}',style:TextStyle(fontWeight:FontWeight.bold,color:m.entrata?Colors.green.shade700:Colors.red.shade700)),
-              )));
-          }))
       ]),
     );
   }
 
-  Widget _saldoBox(String label,double value)=>Column(children:[
-    Text(label,style:const TextStyle(fontWeight:FontWeight.w500)),
-    const SizedBox(height:3),Text(euro(value),style:const TextStyle(fontSize:17,fontWeight:FontWeight.bold))
+  Widget _meseBar() => Padding(
+    padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+    child: Container(
+      decoration: BoxDecoration(color: Colors.white,
+        borderRadius: BorderRadius.circular(16)),
+      child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+        IconButton(onPressed: () => _cambiaMese(-1),
+          icon: const Icon(Icons.chevron_left)),
+        Text(meseIt(mese), style: const TextStyle(
+          fontSize: 16, fontWeight: FontWeight.w800, letterSpacing: .4)),
+        IconButton(onPressed: () => _cambiaMese(1),
+          icon: const Icon(Icons.chevron_right)),
+        IconButton(
+          tooltip: 'Scegli mese',
+          onPressed: () async {
+            final d = await showDatePicker(context: context, initialDate: mese,
+              firstDate: DateTime(2020), lastDate: DateTime(2100));
+            if (d != null) setState(() => mese = DateTime(d.year, d.month));
+          },
+          icon: const Icon(Icons.calendar_month)),
+      ]),
+    ),
+  );
+
+  Widget _riepilogo() => Card(
+    child: Padding(
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+      child: Column(children: [
+        const Align(alignment: Alignment.centerLeft,
+          child: Text('SITUAZIONE DEL MESE',
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800,
+              letterSpacing: 1.1))),
+        const SizedBox(height: 10),
+        Row(children: [
+          Expanded(child: _numeroBox('Saldo iniziale', saldoIniziale,
+            Icons.login_rounded)),
+          const SizedBox(width: 10),
+          Expanded(child: _numeroBox('Saldo finale', saldoFinale,
+            Icons.account_balance_wallet_rounded)),
+        ]),
+        const SizedBox(height: 12),
+        Row(children: [
+          Expanded(child: _miniBox('Entrate', entrate, Icons.arrow_downward_rounded, true)),
+          const SizedBox(width: 10),
+          Expanded(child: _miniBox('Spese', uscite, Icons.arrow_upward_rounded, false)),
+        ]),
+        const SizedBox(height: 14),
+        Row(children: [
+          Expanded(child: _portafoglio('Contanti', contanti, Icons.payments_outlined)),
+          const SizedBox(width: 10),
+          Expanded(child: _portafoglio('Banca', banca, Icons.account_balance_outlined)),
+        ]),
+        const SizedBox(height: 8),
+        Text(
+          'Il saldo finale di ${meseIt(mese)} viene riportato automaticamente come saldo iniziale del mese successivo.',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+      ]),
+    ),
+  );
+
+  Widget _numeroBox(String label, double value, IconData icon) => Container(
+    padding: const EdgeInsets.all(13),
+    decoration: BoxDecoration(
+      color: const Color(0xfff0edf7), borderRadius: BorderRadius.circular(14)),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Icon(icon, size: 19, color: const Color(0xff5b4b9a)),
+      const SizedBox(height: 7),
+      Text(label, style: TextStyle(fontSize: 11, color: Colors.grey.shade700)),
+      const SizedBox(height: 2),
+      Text(euro(value), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+    ]),
+  );
+
+  Widget _miniBox(String label, double value, IconData icon, bool positivo) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+    decoration: BoxDecoration(color: positivo ? const Color(0xffeaf7ef) : const Color(0xffffeeee),
+      borderRadius: BorderRadius.circular(14)),
+    child: Row(children: [
+      CircleAvatar(radius: 16, child: Icon(icon, size: 17)),
+      const SizedBox(width: 9),
+      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(label, style: const TextStyle(fontSize: 11)),
+        Text(euro(value), style: const TextStyle(fontWeight: FontWeight.w800)),
+      ])),
+    ]),
+  );
+
+  Widget _portafoglio(String label, double value, IconData icon) => Row(children: [
+    Icon(icon, size: 18, color: const Color(0xff5b4b9a)),
+    const SizedBox(width: 7),
+    Expanded(child: Text(label, style: const TextStyle(fontSize: 12))),
+    Text(euro(value), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
   ]);
+
+  Widget _azioni() => Padding(
+    padding: const EdgeInsets.fromLTRB(16, 2, 16, 8),
+    child: Row(children: [
+      Expanded(child: FilledButton.icon(
+        style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 13),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+        onPressed: () => _nuovo(entrata: true),
+        icon: const Icon(Icons.add_circle_outline), label: const Text('ENTRATA'))),
+      const SizedBox(width: 10),
+      Expanded(child: OutlinedButton.icon(
+        style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 13),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+        onPressed: () => _nuovo(entrata: false),
+        icon: const Icon(Icons.remove_circle_outline), label: const Text('SPESA'))),
+    ]),
+  );
+
+  Widget _sezioneCategorie(String titolo, Map<String,double> dati, bool entrata) {
+    final entries = dati.entries.toList()
+      ..sort((a,b) => b.value.compareTo(a.value));
+    return Card(
+      child: Padding(padding: const EdgeInsets.fromLTRB(16, 15, 16, 10), child: Column(
+        children: [
+          Row(children: [
+            Icon(entrata ? Icons.trending_up : Icons.pie_chart_outline,
+              size: 20, color: const Color(0xff5b4b9a)),
+            const SizedBox(width: 8),
+            Expanded(child: Text(titolo, style: const TextStyle(
+              fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: .5))),
+            Text(euro(entries.fold(0.0, (s,e) => s + e.value)),
+              style: const TextStyle(fontWeight: FontWeight.w800)),
+          ]),
+          const SizedBox(height: 8),
+          if (entries.isEmpty)
+            Padding(padding: const EdgeInsets.all(12),
+              child: Text('Nessun dato salvato questo mese.',
+                style: TextStyle(color: Colors.grey.shade600)))
+          else
+            ...entries.map((e) => _categoriaRow(e.key, e.value, entrata)),
+        ],
+      )),
+    );
+  }
+
+  Widget _categoriaRow(String nome, double valore, bool entrata) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 6),
+    child: Row(children: [
+      Container(width: 38, height: 38,
+        decoration: BoxDecoration(color: const Color(0xfff0edf7),
+          borderRadius: BorderRadius.circular(11)),
+        child: Icon(_iconaCategoria(nome), size: 19, color: const Color(0xff5b4b9a))),
+      const SizedBox(width: 10),
+      Expanded(child: Text(nome, style: const TextStyle(fontWeight: FontWeight.w600))),
+      Text('${entrata ? '+' : '-'} ${euro(valore)}',
+        style: TextStyle(fontWeight: FontWeight.w800,
+          color: entrata ? Colors.green.shade700 : Colors.red.shade700)),
+    ]),
+  );
+
+  Widget _movimentiSection() => Card(
+    child: Padding(padding: const EdgeInsets.fromLTRB(16, 14, 16, 8), child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Text('MOVIMENTI SALVATI', style: TextStyle(
+          fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: .5)),
+        const SizedBox(height: 6),
+        if (delMese.isEmpty)
+          const Padding(padding: EdgeInsets.all(14),
+            child: Center(child: Text('Nessun movimento per questo mese.')))
+        else
+          ...delMese.map((m) => Dismissible(
+            key: ValueKey(m.id),
+            background: _deleteBg(true), secondaryBackground: _deleteBg(false),
+            onDismissed: (_) => widget.onDelete(m.id),
+            child: ListTile(
+              contentPadding: EdgeInsets.zero,
+              onTap: () => _edit(m),
+              leading: CircleAvatar(
+                backgroundColor: m.entrata ? const Color(0xffe8f6ed) : const Color(0xffffeeee),
+                child: Icon(m.entrata ? Icons.arrow_downward : Icons.arrow_upward,
+                  size: 18, color: m.entrata ? Colors.green.shade700 : Colors.red.shade700)),
+              title: Text(m.categoria, style: const TextStyle(fontWeight: FontWeight.w700)),
+              subtitle: Text('${dataIt(m.data)} • ${m.metodo}${m.descrizione.isEmpty ? '' : ' • ${m.descrizione}'}'),
+              trailing: Text('${m.entrata ? '+' : '-'} ${euro(m.importo)}',
+                style: TextStyle(fontWeight: FontWeight.w800,
+                  color: m.entrata ? Colors.green.shade700 : Colors.red.shade700)),
+            ),
+          )),
+      ]),
+    ),
+  );
+
+  Widget _deleteBg(bool left) => Container(
+    color: Colors.red.shade400,
+    alignment: left ? Alignment.centerLeft : Alignment.centerRight,
+    padding: const EdgeInsets.symmetric(horizontal: 20),
+    child: const Icon(Icons.delete_outline, color: Colors.white));
+
+  IconData _iconaCategoria(String c) {
+    switch (c) {
+      case 'Stipendio': return Icons.work_outline;
+      case 'Banca': return Icons.account_balance;
+      case 'Extra': return Icons.add_business;
+      case 'Acqua': return Icons.water_drop_outlined;
+      case 'Luce': return Icons.lightbulb_outline;
+      case 'Gas': return Icons.local_fire_department_outlined;
+      case 'Internet': return Icons.wifi;
+      case 'Benzina': return Icons.local_gas_station_outlined;
+      case 'Bollo auto': return Icons.directions_car_outlined;
+      case 'Assicurazione': return Icons.shield_outlined;
+      case 'Condominio': return Icons.apartment_outlined;
+      default: return Icons.receipt_long_outlined;
+    }
+  }
 }
 
 class MovimentoPage extends StatefulWidget {
   final bool entrata;
   final Movimento? movimento;
-  const MovimentoPage({super.key,required this.entrata,this.movimento});
-  @override State<MovimentoPage> createState()=>_MovimentoPageState();
+  const MovimentoPage({super.key, required this.entrata, this.movimento});
+  @override State<MovimentoPage> createState() => _MovimentoPageState();
 }
 
-class _MovimentoPageState extends State<MovimentoPage>{
+class _MovimentoPageState extends State<MovimentoPage> {
   late bool entrata;
   late DateTime data;
   late String categoria;
   late String metodo;
-  final descrizione=TextEditingController();
-  final importo=TextEditingController();
+  final descrizione = TextEditingController();
+  final importo = TextEditingController();
 
-  static const entrate=['Stipendio','Banca','Extra'];
-  static const uscite=['Acqua','Luce','Gas','Internet','Benzina','Bollo auto','Assicurazione','Condominio','Altre'];
+  static const entrate = ['Stipendio','Banca','Extra'];
+  static const uscite = ['Acqua','Luce','Gas','Internet','Benzina',
+    'Bollo auto','Assicurazione','Condominio','Altre'];
 
-  @override void initState(){
+  @override
+  void initState() {
     super.initState();
-    final m=widget.movimento;
-    entrata=m?.entrata??widget.entrata; data=m?.data??DateTime.now();
-    categoria=m?.categoria??(widget.entrata?entrate.first:uscite.first);
-    metodo=m?.metodo??'Contanti';
-    descrizione.text=m?.descrizione??'';
-    importo.text=m==null?'':m.importo.toStringAsFixed(2);
+    final m = widget.movimento;
+    entrata = m?.entrata ?? widget.entrata;
+    data = m?.data ?? DateTime.now();
+    categoria = m?.categoria ?? (entrata ? entrate.first : uscite.first);
+    metodo = m?.metodo ?? 'Contanti';
+    descrizione.text = m?.descrizione ?? '';
+    importo.text = m == null ? '' : m.importo.toStringAsFixed(2);
   }
 
-  @override void dispose(){descrizione.dispose();importo.dispose();super.dispose();}
+  @override void dispose() {
+    descrizione.dispose(); importo.dispose(); super.dispose();
+  }
 
   Future<void> _data() async {
-    final d=await showDatePicker(context:context,initialDate:data,firstDate:DateTime(2020),lastDate:DateTime(2100));
-    if(d!=null)setState(()=>data=d);
+    final d = await showDatePicker(context: context, initialDate: data,
+      firstDate: DateTime(2020), lastDate: DateTime(2100));
+    if (d != null) setState(() => data = d);
   }
 
-  void _salva(){
-    final v=double.tryParse(importo.text.replaceAll(',','.'));
-    if(v==null||v<=0){
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Inserisci un importo valido.')));
+  void _salva() {
+    final v = double.tryParse(importo.text.replaceAll(',', '.'));
+    if (v == null || v <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Inserisci un importo valido.')));
       return;
     }
-    Navigator.pop(context,Movimento(
-      id:widget.movimento?.id??DateTime.now().microsecondsSinceEpoch.toString(),
-      data:data,entrata:entrata,categoria:categoria,descrizione:descrizione.text.trim(),
-      importo:v,metodo:metodo));
+    Navigator.pop(context, Movimento(
+      id: widget.movimento?.id ?? DateTime.now().microsecondsSinceEpoch.toString(),
+      data: data, entrata: entrata, categoria: categoria,
+      descrizione: descrizione.text.trim(), importo: v, metodo: metodo));
   }
 
-  @override Widget build(BuildContext context){
-    return Scaffold(
-      appBar:AppBar(title:Text(widget.movimento==null?(entrata?'Nuova entrata':'Nuova uscita'):'Modifica movimento')),
-      body:ListView(padding:const EdgeInsets.all(18),children:[
-        SegmentedButton<bool>(segments:const[
-          ButtonSegment(value:true,label:Text('Entrata'),icon:Icon(Icons.add)),
-          ButtonSegment(value:false,label:Text('Uscita'),icon:Icon(Icons.remove))],
-          selected:{entrata},onSelectionChanged:(s)=>setState(() { entrata=s.first; categoria=(s.first?entrate:uscite).first; }),
-        ),
-        const SizedBox(height:18),
-        ListTile(contentPadding:EdgeInsets.zero,title:const Text('Data'),subtitle:Text(dataIt(data)),
-          trailing:IconButton(onPressed:_data,icon:const Icon(Icons.calendar_today))),
-        DropdownButtonFormField<String>(initialValue:categoria,decoration:const InputDecoration(labelText:'Categoria',border:OutlineInputBorder()),
-          items:(entrata?entrate:uscite).map((e)=>DropdownMenuItem(value:e,child:Text(e))).toList(),
-          onChanged:(v){if(v!=null)setState(()=>categoria=v);}),
-        const SizedBox(height:14),
-        DropdownButtonFormField<String>(initialValue:metodo,decoration:const InputDecoration(labelText:'Metodo',border:OutlineInputBorder()),
-          items:['Contanti','Banca'].map((e)=>DropdownMenuItem(value:e,child:Text(e))).toList(),
-          onChanged:(v){if(v!=null)setState(()=>metodo=v);}),
-        const SizedBox(height:14),
-        TextField(controller:descrizione,decoration:const InputDecoration(labelText:'Descrizione (facoltativa)',border:OutlineInputBorder())),
-        const SizedBox(height:14),
-        TextField(controller:importo,keyboardType:const TextInputType.numberWithOptions(decimal:true),
-          decoration:const InputDecoration(labelText:'Importo €',border:OutlineInputBorder())),
-        const SizedBox(height:24),
-        FilledButton(onPressed:_salva,child:const Padding(padding:EdgeInsets.all(12),child:Text('SALVA'))),
-      ])
-    );
-  }
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(
+      title: Text(widget.movimento == null
+        ? (entrata ? 'Nuova entrata' : 'Nuova spesa')
+        : 'Modifica movimento'),
+    ),
+    body: ListView(padding: const EdgeInsets.all(18), children: [
+      SegmentedButton<bool>(
+        segments: const [
+          ButtonSegment(value: true, label: Text('Entrata'), icon: Icon(Icons.add)),
+          ButtonSegment(value: false, label: Text('Spesa'), icon: Icon(Icons.remove)),
+        ],
+        selected: {entrata},
+        onSelectionChanged: (s) => setState(() {
+          entrata = s.first;
+          categoria = (entrata ? entrate : uscite).first;
+        }),
+      ),
+      const SizedBox(height: 18),
+      ListTile(
+        contentPadding: EdgeInsets.zero,
+        tileColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        title: const Text('Data', style: TextStyle(fontWeight: FontWeight.w600)),
+        subtitle: Text(dataIt(data)),
+        trailing: IconButton(onPressed: _data, icon: const Icon(Icons.calendar_today))),
+      const SizedBox(height: 12),
+      DropdownButtonFormField<String>(
+        initialValue: categoria,
+        decoration: const InputDecoration(labelText: 'Categoria'),
+        items: (entrata ? entrate : uscite)
+          .map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+        onChanged: (v) { if (v != null) setState(() => categoria = v); }),
+      const SizedBox(height: 14),
+      DropdownButtonFormField<String>(
+        initialValue: metodo,
+        decoration: const InputDecoration(labelText: 'Dove / metodo'),
+        items: ['Contanti','Banca'].map((e) =>
+          DropdownMenuItem(value: e, child: Text(e))).toList(),
+        onChanged: (v) { if (v != null) setState(() => metodo = v); }),
+      const SizedBox(height: 14),
+      TextField(controller: descrizione,
+        decoration: const InputDecoration(labelText: 'Descrizione (facoltativa)')),
+      const SizedBox(height: 14),
+      TextField(controller: importo,
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        decoration: const InputDecoration(labelText: 'Importo €')),
+      const SizedBox(height: 26),
+      FilledButton.icon(
+        onPressed: _salva,
+        icon: const Icon(Icons.check),
+        label: const Padding(padding: EdgeInsets.all(12), child: Text('SALVA MOVIMENTO')),
+      ),
+    ]),
+  );
 }
