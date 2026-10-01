@@ -453,33 +453,57 @@ class _HomePageState extends State<HomePage> {
           const Padding(padding: EdgeInsets.all(14),
             child: Center(child: Text('Nessun movimento per questo mese.')))
         else
-          ...delMese.map((m) => Dismissible(
-            key: ValueKey(m.id),
-            background: _deleteBg(true), secondaryBackground: _deleteBg(false),
-            onDismissed: (_) => widget.onDelete(m.id),
-            child: ListTile(
-              contentPadding: EdgeInsets.zero,
-              onTap: () => _edit(m),
-              leading: CircleAvatar(
-                backgroundColor: m.entrata ? const Color(0xffe8f6ed) : const Color(0xffffeeee),
-                child: Icon(m.entrata ? Icons.arrow_downward : Icons.arrow_upward,
-                  size: 18, color: m.entrata ? Colors.green.shade700 : Colors.red.shade700)),
-              title: Text(m.categoria, style: const TextStyle(fontWeight: FontWeight.w700)),
-              subtitle: Text('${dataIt(m.data)} • ${m.metodo}${m.descrizione.isEmpty ? '' : ' • ${m.descrizione}'}'),
-              trailing: Text('${m.entrata ? '+' : '-'} ${euro(m.importo)}',
-                style: TextStyle(fontWeight: FontWeight.w800,
-                  color: m.entrata ? Colors.green.shade700 : Colors.red.shade700)),
+          ...delMese.map((m) => ListTile(
+            contentPadding: EdgeInsets.zero,
+            onTap: () => _edit(m),
+            leading: CircleAvatar(
+              backgroundColor: m.entrata ? const Color(0xffe8f6ed) : const Color(0xffffeeee),
+              child: Icon(m.entrata ? Icons.arrow_downward : Icons.arrow_upward,
+                size: 18, color: m.entrata ? Colors.green.shade700 : Colors.red.shade700)),
+            title: Text(m.categoria, style: const TextStyle(fontWeight: FontWeight.w700)),
+            subtitle: Text('${dataIt(m.data)} • ${m.metodo}${m.descrizione.isEmpty ? '' : ' • ${m.descrizione}'}'),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('${m.entrata ? '+' : '-'} ${euro(m.importo)}',
+                  style: TextStyle(fontWeight: FontWeight.w800,
+                    color: m.entrata ? Colors.green.shade700 : Colors.red.shade700)),
+                IconButton(
+                  tooltip: 'Elimina movimento',
+                  icon: const Icon(Icons.delete_outline),
+                  color: Colors.red.shade600,
+                  onPressed: () => _confermaEliminazione(m),
+                ),
+              ],
             ),
           )),
       ]),
     ),
   );
 
-  Widget _deleteBg(bool left) => Container(
-    color: Colors.red.shade400,
-    alignment: left ? Alignment.centerLeft : Alignment.centerRight,
-    padding: const EdgeInsets.symmetric(horizontal: 20),
-    child: const Icon(Icons.delete_outline, color: Colors.white));
+  Future<void> _confermaEliminazione(Movimento m) async {
+    final conferma = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Eliminare il movimento?'),
+        content: Text(
+          'Vuoi eliminare il movimento "${m.categoria}" di ${euro(m.importo)}?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Annulla'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Elimina'),
+          ),
+        ],
+      ),
+    );
+    if (conferma == true) {
+      widget.onDelete(m.id);
+    }
+  }
 
   IconData _iconaCategoria(String c) {
     switch (c) {
