@@ -152,17 +152,17 @@ class _AppState extends State<GestioneFamiliareApp> {
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: scheme,
-        scaffoldBackgroundColor: const Color(0xfff6f4fa),
+        scaffoldBackgroundColor: const Color(0xffeee9f6),
         appBarTheme: const AppBarTheme(
           backgroundColor: Colors.transparent, elevation: 0, centerTitle: false, surfaceTintColor: Colors.transparent),
         cardTheme: CardThemeData(
           elevation: 0,
-          color: Colors.white,
+          color: const Color(0xfff5f1fa),
           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18), side: const BorderSide(color: Color(0xffebe7f2))),
         ),
         inputDecorationTheme: InputDecorationTheme(
-          filled: true, fillColor: Colors.white,
+          filled: true, fillColor: const Color(0xfff5f1fa),
           contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 16),
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xffe8e2f0))),
           enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xffe8e2f0))),
@@ -430,7 +430,7 @@ class _HomePageState extends State<HomePage> {
     Container(
       padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 15),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: const Color(0xfff5f1fa),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xffe8e2f0)),
       ),
@@ -530,7 +530,7 @@ class _HomePageState extends State<HomePage> {
   Widget _meseBar() => Padding(
     padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
     child: Container(
-      decoration: BoxDecoration(color: Colors.white, border: Border.all(color: const Color(0xffebe7f2)),
+      decoration: BoxDecoration(color: const Color(0xfff5f1fa), border: Border.all(color: const Color(0xffebe7f2)),
         borderRadius: BorderRadius.circular(16)),
       child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
         IconButton(onPressed: () => _cambiaMese(-1),
@@ -777,8 +777,7 @@ class _MovimentoPageState extends State<MovimentoPage> {
   final importo = TextEditingController();
 
   static const entrate = ['Stipendio','Banca','Extra'];
-  static const uscite = ['Acqua','Luce','Gas','Internet','Benzina',
-    'Bollo auto','Assicurazione','Condominio','Altre'];
+  // Le categorie di spesa partono vuote: l'utente le crea liberamente.
 
   @override
   void initState() {
@@ -786,7 +785,7 @@ class _MovimentoPageState extends State<MovimentoPage> {
     final m = widget.movimento;
     entrata = m?.entrata ?? widget.entrata;
     data = m?.data ?? DateTime.now();
-    categoria = m?.categoria ?? (entrata ? entrate.first : uscite.first);
+    categoria = m?.categoria ?? (entrata ? entrate.first : '');
     metodo = m?.metodo ?? 'Contanti';
     descrizione.text = m?.descrizione ?? '';
     importo.text = m == null ? '' : m.importo.toStringAsFixed(2);
@@ -803,6 +802,11 @@ class _MovimentoPageState extends State<MovimentoPage> {
   }
 
   void _salva() {
+    if (!entrata && categoria.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Inserisci il nome della categoria di spesa.')));
+      return;
+    }
     final v = double.tryParse(importo.text.replaceAll(',', '.'));
     if (v == null || v <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -831,24 +835,36 @@ class _MovimentoPageState extends State<MovimentoPage> {
         selected: {entrata},
         onSelectionChanged: (s) => setState(() {
           entrata = s.first;
-          categoria = (entrata ? entrate : uscite).first;
+          categoria = entrata ? entrate.first : ''; 
         }),
       ),
       const SizedBox(height: 18),
       ListTile(
         contentPadding: EdgeInsets.zero,
-        tileColor: Colors.white,
+        tileColor: const Color(0xfff5f1fa),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         title: const Text('Data', style: TextStyle(fontWeight: FontWeight.w600)),
         subtitle: Text(dataIt(data)),
         trailing: IconButton(onPressed: _data, icon: const Icon(Icons.calendar_today))),
       const SizedBox(height: 12),
-      DropdownButtonFormField<String>(
-        initialValue: categoria,
-        decoration: const InputDecoration(labelText: 'Categoria'),
-        items: (entrata ? entrate : uscite)
-          .map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
-        onChanged: (v) { if (v != null) setState(() => categoria = v); }),
+      if (entrata)
+        DropdownButtonFormField<String>(
+          key: const ValueKey('categoria-entrata'),
+          initialValue: categoria.isEmpty ? entrate.first : categoria,
+          decoration: const InputDecoration(labelText: 'Categoria'),
+          items: entrate.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+          onChanged: (v) { if (v != null) setState(() => categoria = v); })
+      else
+        TextFormField(
+          key: const ValueKey('categoria-spesa'),
+          initialValue: categoria,
+          textCapitalization: TextCapitalization.sentences,
+          decoration: const InputDecoration(
+            labelText: 'Nuova categoria di spesa',
+            hintText: 'Es. Spesa alimentare, affitto, farmacia…',
+            prefixIcon: Icon(Icons.edit_outlined)),
+          onChanged: (v) => categoria = v.trim(),
+        ),
       const SizedBox(height: 14),
       DropdownButtonFormField<String>(
         initialValue: metodo,
