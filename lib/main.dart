@@ -305,6 +305,17 @@ class _HomePageState extends State<HomePage> {
       children: [
         _meseBar(),
         _riepilogo(),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(18, 8, 18, 2),
+          child: Row(children: [
+            const Expanded(child: Text('GESTIONE RAPIDA',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900,
+                letterSpacing: .9, color: Color(0xff5b4b9a)))),
+            Text('${delMese.length} registrazioni',
+              style: TextStyle(fontSize: 11, color: Colors.grey.shade700,
+                fontWeight: FontWeight.w600)),
+          ]),
+        ),
         _azioni(),
         Card(child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
@@ -326,7 +337,7 @@ class _HomePageState extends State<HomePage> {
                   backgroundColor: m.entrata ? const Color(0xffe8f6ed) : const Color(0xffffeeee),
                   child: Icon(m.entrata ? Icons.arrow_downward : Icons.arrow_upward,
                     color: m.entrata ? Colors.green.shade700 : Colors.red.shade700)),
-                title: Text(m.categoria, style: const TextStyle(fontWeight: FontWeight.w700)),
+                title: Text(m.categoria, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
                 subtitle: Text('${dataIt(m.data)} • ${m.metodo}'),
                 trailing: Text('${m.entrata ? '+' : '-'} ${euro(m.importo)}',
                   style: TextStyle(fontWeight: FontWeight.w800,
@@ -343,14 +354,24 @@ class _HomePageState extends State<HomePage> {
     padding: const EdgeInsets.only(bottom: 24, top: 4),
     children: [
       _meseBar(),
-      Padding(padding: const EdgeInsets.fromLTRB(18, 8, 18, 4),
+      Padding(padding: const EdgeInsets.fromLTRB(18, 8, 18, 8),
         child: Row(children: [
-          Expanded(child: Text('${delMese.length} movimenti registrati',
-            style: TextStyle(color: Colors.grey.shade700, fontWeight: FontWeight.w600))),
-          Text('${euro(entrate - uscite)} saldo mese',
-            style: const TextStyle(fontWeight: FontWeight.w800)),
+          Expanded(child: _paginaStat('MOVIMENTI', '${delMese.length}',
+            Icons.receipt_long_outlined, const Color(0xff5b4b9a))),
+          const SizedBox(width: 9),
+          Expanded(child: _paginaStat('SALDO DEL MESE', euro(entrate - uscite),
+            Icons.account_balance_wallet_outlined,
+            (entrate - uscite) >= 0 ? Colors.green.shade700 : Colors.red.shade700)),
         ])),
+      Padding(padding: const EdgeInsets.fromLTRB(18, 8, 18, 0),
+        child: const Text('AGGIUNGI UN MOVIMENTO',
+          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900,
+            letterSpacing: .8, color: Color(0xff5b4b9a)))),
       _azioni(),
+      Padding(padding: const EdgeInsets.fromLTRB(18, 8, 18, 0),
+        child: const Text('ELENCO COMPLETO',
+          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900,
+            letterSpacing: .8, color: Color(0xff5b4b9a)))),
       _movimentiSection(),
     ],
   );
@@ -362,12 +383,28 @@ class _HomePageState extends State<HomePage> {
     final percentuale = totale == 0 ? 0.0 : entrate / totale;
     return ListView(padding: const EdgeInsets.only(bottom: 24, top: 4), children: [
       _meseBar(),
-      _riepilogo(),
+      Padding(padding: const EdgeInsets.fromLTRB(18, 8, 18, 3),
+        child: const Text('I NUMERI DEL MESE',
+          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900,
+            letterSpacing: .9, color: Color(0xff5b4b9a)))),
+      Padding(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        child: Row(children: [
+          Expanded(child: _paginaStat('ENTRATE', euro(entrate),
+            Icons.south_west_rounded, Colors.green.shade700)),
+          const SizedBox(width: 8),
+          Expanded(child: _paginaStat('USCITE', euro(uscite),
+            Icons.north_east_rounded, Colors.red.shade700)),
+          const SizedBox(width: 8),
+          Expanded(child: _paginaStat('SALDO', euro(entrate - uscite),
+            Icons.account_balance_wallet_outlined,
+            (entrate - uscite) >= 0 ? const Color(0xff5b4b9a) : Colors.red.shade700)),
+        ])),
       Card(child: Padding(
         padding: const EdgeInsets.all(18),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('RIEPILOGO DEL PERIODO',
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: .5)),
+          const Text('COME SI COMPONE IL BILANCIO',
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w900,
+              letterSpacing: .6, color: Color(0xff5b4b9a))),
           const SizedBox(height: 16),
           Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
             const Text('Incidenza entrate'),
@@ -376,7 +413,7 @@ class _HomePageState extends State<HomePage> {
           ]),
           const SizedBox(height: 9),
           ClipRRect(borderRadius: BorderRadius.circular(20),
-            child: LinearProgressIndicator(value: percentuale, minHeight: 10,
+            child: LinearProgressIndicator(value: percentuale, minHeight: 16,
               backgroundColor: const Color(0xffffeeee),
               color: Colors.green.shade600)),
           const SizedBox(height: 10),
@@ -388,6 +425,26 @@ class _HomePageState extends State<HomePage> {
       _sezioneCategorie('SPESE PER CATEGORIA', usciteCat, false),
     ]);
   }
+
+  Widget _paginaStat(String label, String value, IconData icon, Color color) =>
+    Container(
+      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 15),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xffe8e2f0)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Icon(icon, color: color, size: 21),
+        const SizedBox(height: 9),
+        Text(label, style: TextStyle(fontSize: 10, color: Colors.grey.shade700,
+          fontWeight: FontWeight.w800, letterSpacing: .4)),
+        const SizedBox(height: 4),
+        FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft,
+          child: Text(value, style: TextStyle(fontSize: 17,
+            fontWeight: FontWeight.w900, color: color))),
+      ]),
+    );
 
   Widget _paginaBackup() => ListView(
     padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
@@ -405,19 +462,57 @@ class _HomePageState extends State<HomePage> {
         ]),
       )),
       const SizedBox(height: 8),
-      Card(child: ListTile(
-        leading: const CircleAvatar(child: Icon(Icons.upload_file)),
-        title: const Text('Esporta backup', style: TextStyle(fontWeight: FontWeight.w700)),
-        subtitle: const Text('Salva una copia dei tuoi dati in un file.'),
-        trailing: const Icon(Icons.chevron_right),
-        onTap: widget.onExport,
+      Card(child: Padding(
+        padding: const EdgeInsets.all(17),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            const CircleAvatar(radius: 23,
+              backgroundColor: Color(0xffeee9f7),
+              child: Icon(Icons.upload_file, color: Color(0xff5b4b9a))),
+            const SizedBox(width: 12),
+            const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('Esporta backup', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
+              SizedBox(height: 3),
+              Text('Crea una copia di sicurezza dei movimenti.',
+                style: TextStyle(fontSize: 12)),
+            ])),
+          ]),
+          const SizedBox(height: 14),
+          SizedBox(width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: widget.onExport,
+              icon: const Icon(Icons.save_alt),
+              label: const Padding(padding: EdgeInsets.symmetric(vertical: 12),
+                child: Text('ESPORTA I MIEI DATI',
+                  style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: .4))),
+            )),
+        ]),
       )),
-      Card(child: ListTile(
-        leading: const CircleAvatar(child: Icon(Icons.download)),
-        title: const Text('Importa backup', style: TextStyle(fontWeight: FontWeight.w700)),
-        subtitle: const Text('Ripristina i dati da un file JSON.'),
-        trailing: const Icon(Icons.chevron_right),
-        onTap: widget.onImport,
+      Card(child: Padding(
+        padding: const EdgeInsets.all(17),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            const CircleAvatar(radius: 23,
+              backgroundColor: Color(0xffeee9f7),
+              child: Icon(Icons.download, color: Color(0xff5b4b9a))),
+            const SizedBox(width: 12),
+            const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('Importa backup', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
+              SizedBox(height: 3),
+              Text('Recupera i dati da una copia precedente.',
+                style: TextStyle(fontSize: 12)),
+            ])),
+          ]),
+          const SizedBox(height: 14),
+          SizedBox(width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: widget.onImport,
+              icon: const Icon(Icons.restore),
+              label: const Padding(padding: EdgeInsets.symmetric(vertical: 12),
+                child: Text('IMPORTA UN BACKUP',
+                  style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: .4))),
+            )),
+        ]),
       )),
       const SizedBox(height: 16),
       Card(child: Padding(
@@ -502,7 +597,7 @@ class _HomePageState extends State<HomePage> {
       const SizedBox(height: 7),
       Text(label, style: TextStyle(fontSize: 11, color: Colors.grey.shade700)),
       const SizedBox(height: 2),
-      Text(euro(value), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+      Text(euro(value), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
     ]),
   );
 
@@ -590,7 +685,7 @@ class _HomePageState extends State<HomePage> {
     child: Padding(padding: const EdgeInsets.fromLTRB(16, 14, 16, 8), child: Column(
       crossAxisAlignment: CrossAxisAlignment.start, children: [
         const Text('MOVIMENTI SALVATI', style: TextStyle(
-          fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: .5)),
+          fontSize: 13, fontWeight: FontWeight.w900, letterSpacing: .7, color: Color(0xff5b4b9a))),
         const SizedBox(height: 6),
         if (delMese.isEmpty)
           const Padding(padding: EdgeInsets.all(14),
@@ -603,8 +698,8 @@ class _HomePageState extends State<HomePage> {
               backgroundColor: m.entrata ? const Color(0xffe8f6ed) : const Color(0xffffeeee),
               child: Icon(m.entrata ? Icons.arrow_downward : Icons.arrow_upward,
                 size: 18, color: m.entrata ? Colors.green.shade700 : Colors.red.shade700)),
-            title: Text(m.categoria, style: const TextStyle(fontWeight: FontWeight.w700)),
-            subtitle: Text('${dataIt(m.data)} • ${m.metodo}${m.descrizione.isEmpty ? '' : ' • ${m.descrizione}'}'),
+            title: Text(m.categoria, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+            subtitle: Text('${dataIt(m.data)} • ${m.metodo}${m.descrizione.isEmpty ? '' : ' • ${m.descrizione}'}', style: const TextStyle(fontSize: 12)),
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
