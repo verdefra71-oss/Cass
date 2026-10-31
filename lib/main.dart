@@ -152,18 +152,21 @@ class _AppState extends State<GestioneFamiliareApp> {
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: scheme,
-        scaffoldBackgroundColor: const Color(0xfff4f2f8),
+        scaffoldBackgroundColor: const Color(0xfff6f4fa),
         appBarTheme: const AppBarTheme(
-          backgroundColor: Colors.transparent, elevation: 0, centerTitle: false),
+          backgroundColor: Colors.transparent, elevation: 0, centerTitle: false, surfaceTintColor: Colors.transparent),
         cardTheme: CardThemeData(
           elevation: 0,
-          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          color: Colors.white,
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18), side: const BorderSide(color: Color(0xffebe7f2))),
         ),
         inputDecorationTheme: InputDecorationTheme(
           filled: true, fillColor: Colors.white,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 16),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xffe8e2f0))),
+          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xffe8e2f0))),
+          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xff5b4b9a), width: 1.5)),
         ),
       ),
       home: !_caricato
@@ -191,6 +194,7 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  int _tab = 0;
   DateTime mese = DateTime(DateTime.now().year, DateTime.now().month);
 
   List<Movimento> get delMese {
@@ -247,52 +251,191 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    final entrateCat = categorie(true);
-    final usciteCat = categorie(false);
-
+    final titoli = ['Gestione Familiare', 'Movimenti', 'Analisi', 'Backup e dati'];
     return Scaffold(
       appBar: AppBar(
-        title: const Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('Gestione Familiare',
-            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 22)),
-          Text('Il tuo bilancio, mese dopo mese',
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w400)),
+        title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(titoli[_tab], style: const TextStyle(
+            fontWeight: FontWeight.w800, fontSize: 22)),
+          Text(meseIt(mese), style: const TextStyle(
+            fontSize: 12, fontWeight: FontWeight.w400)),
         ]),
         actions: [
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert),
-            onSelected: (v) {
-              if (v == 'export') widget.onExport();
-              if (v == 'import') widget.onImport();
-            },
-            itemBuilder: (_) => const [
-              PopupMenuItem(value: 'export',
-                child: ListTile(leading: Icon(Icons.upload_file), title: Text('Esporta dati'))),
-              PopupMenuItem(value: 'import',
-                child: ListTile(leading: Icon(Icons.download), title: Text('Importa dati'))),
-            ]),
+          if (_tab != 3)
+            IconButton(
+              tooltip: 'Seleziona mese',
+              onPressed: () async {
+                final d = await showDatePicker(context: context, initialDate: mese,
+                  firstDate: DateTime(2020), lastDate: DateTime(2100));
+                if (d != null) setState(() => mese = DateTime(d.year, d.month));
+              },
+              icon: const Icon(Icons.calendar_month_outlined)),
+          if (_tab == 3)
+            const Padding(padding: EdgeInsets.only(right: 14),
+              child: Icon(Icons.settings_outlined)),
         ],
       ),
-      body: Column(children: [
-        _meseBar(),
-        Expanded(child: ListView(
-          padding: const EdgeInsets.only(bottom: 24),
-          children: [
-            _riepilogo(),
-            _azioni(),
-            _sezioneCategorie('ENTRATE PER CATEGORIA', entrateCat, true),
-            _sezioneCategorie('SPESE PER CATEGORIA', usciteCat, false),
-            _movimentiSection(),
-          ],
-        )),
+      body: IndexedStack(index: _tab, children: [
+        _paginaHome(),
+        _paginaMovimenti(),
+        _paginaAnalisi(),
+        _paginaBackup(),
       ]),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _tab,
+        onDestinationSelected: (i) => setState(() => _tab = i),
+        destinations: const [
+          NavigationDestination(icon: Icon(Icons.home_outlined),
+            selectedIcon: Icon(Icons.home_rounded), label: 'Home'),
+          NavigationDestination(icon: Icon(Icons.receipt_long_outlined),
+            selectedIcon: Icon(Icons.receipt_long), label: 'Movimenti'),
+          NavigationDestination(icon: Icon(Icons.pie_chart_outline),
+            selectedIcon: Icon(Icons.pie_chart), label: 'Analisi'),
+          NavigationDestination(icon: Icon(Icons.cloud_sync_outlined),
+            selectedIcon: Icon(Icons.cloud_sync), label: 'Backup'),
+        ],
+      ),
     );
   }
+
+  Widget _paginaHome() {
+    final recenti = delMese.take(4).toList();
+    return ListView(
+      padding: const EdgeInsets.only(bottom: 24, top: 4),
+      children: [
+        _meseBar(),
+        _riepilogo(),
+        _azioni(),
+        Card(child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              const Expanded(child: Text('ULTIMI MOVIMENTI',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800,
+                  letterSpacing: .5))),
+              TextButton(onPressed: () => setState(() => _tab = 1),
+                child: const Text('Vedi tutti')),
+            ]),
+            if (recenti.isEmpty)
+              const Padding(padding: EdgeInsets.all(14),
+                child: Center(child: Text('Ancora nessun movimento questo mese.')))
+            else
+              ...recenti.map((m) => ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: CircleAvatar(
+                  backgroundColor: m.entrata ? const Color(0xffe8f6ed) : const Color(0xffffeeee),
+                  child: Icon(m.entrata ? Icons.arrow_downward : Icons.arrow_upward,
+                    color: m.entrata ? Colors.green.shade700 : Colors.red.shade700)),
+                title: Text(m.categoria, style: const TextStyle(fontWeight: FontWeight.w700)),
+                subtitle: Text('${dataIt(m.data)} • ${m.metodo}'),
+                trailing: Text('${m.entrata ? '+' : '-'} ${euro(m.importo)}',
+                  style: TextStyle(fontWeight: FontWeight.w800,
+                    color: m.entrata ? Colors.green.shade700 : Colors.red.shade700)),
+                onTap: () => _edit(m),
+              )),
+          ]),
+        )),
+      ],
+    );
+  }
+
+  Widget _paginaMovimenti() => ListView(
+    padding: const EdgeInsets.only(bottom: 24, top: 4),
+    children: [
+      _meseBar(),
+      Padding(padding: const EdgeInsets.fromLTRB(18, 8, 18, 4),
+        child: Row(children: [
+          Expanded(child: Text('${delMese.length} movimenti registrati',
+            style: TextStyle(color: Colors.grey.shade700, fontWeight: FontWeight.w600))),
+          Text('${euro(entrate - uscite)} saldo mese',
+            style: const TextStyle(fontWeight: FontWeight.w800)),
+        ])),
+      _azioni(),
+      _movimentiSection(),
+    ],
+  );
+
+  Widget _paginaAnalisi() {
+    final entrateCat = categorie(true);
+    final usciteCat = categorie(false);
+    final totale = entrate + uscite;
+    final percentuale = totale == 0 ? 0.0 : entrate / totale;
+    return ListView(padding: const EdgeInsets.only(bottom: 24, top: 4), children: [
+      _meseBar(),
+      _riepilogo(),
+      Card(child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Text('RIEPILOGO DEL PERIODO',
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: .5)),
+          const SizedBox(height: 16),
+          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+            const Text('Incidenza entrate'),
+            Text('${(percentuale * 100).toStringAsFixed(0)}%',
+              style: const TextStyle(fontWeight: FontWeight.w800)),
+          ]),
+          const SizedBox(height: 9),
+          ClipRRect(borderRadius: BorderRadius.circular(20),
+            child: LinearProgressIndicator(value: percentuale, minHeight: 10,
+              backgroundColor: const Color(0xffffeeee),
+              color: Colors.green.shade600)),
+          const SizedBox(height: 10),
+          Text('Confronto tra entrate e uscite del mese selezionato.',
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+        ]),
+      )),
+      _sezioneCategorie('ENTRATE PER CATEGORIA', entrateCat, true),
+      _sezioneCategorie('SPESE PER CATEGORIA', usciteCat, false),
+    ]);
+  }
+
+  Widget _paginaBackup() => ListView(
+    padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
+    children: [
+      Card(child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Icon(Icons.shield_outlined, size: 32, color: Color(0xff5b4b9a)),
+          const SizedBox(height: 10),
+          const Text('Proteggi i tuoi dati',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 6),
+          Text('Crea una copia di sicurezza dei tuoi movimenti oppure ripristina un backup precedente.',
+            style: TextStyle(color: Colors.grey.shade700, height: 1.4)),
+        ]),
+      )),
+      const SizedBox(height: 8),
+      Card(child: ListTile(
+        leading: const CircleAvatar(child: Icon(Icons.upload_file)),
+        title: const Text('Esporta backup', style: TextStyle(fontWeight: FontWeight.w700)),
+        subtitle: const Text('Salva una copia dei tuoi dati in un file.'),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: widget.onExport,
+      )),
+      Card(child: ListTile(
+        leading: const CircleAvatar(child: Icon(Icons.download)),
+        title: const Text('Importa backup', style: TextStyle(fontWeight: FontWeight.w700)),
+        subtitle: const Text('Ripristina i dati da un file JSON.'),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: widget.onImport,
+      )),
+      const SizedBox(height: 16),
+      Card(child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(children: [
+          const Icon(Icons.info_outline, color: Color(0xff5b4b9a)),
+          const SizedBox(width: 12),
+          Expanded(child: Text('I dati sono conservati sul dispositivo. Ti consigliamo di esportare periodicamente un backup.',
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade700))),
+        ]),
+      )),
+    ],
+  );
 
   Widget _meseBar() => Padding(
     padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
     child: Container(
-      decoration: BoxDecoration(color: Colors.white,
+      decoration: BoxDecoration(color: Colors.white, border: Border.all(color: const Color(0xffebe7f2)),
         borderRadius: BorderRadius.circular(16)),
       child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
         IconButton(onPressed: () => _cambiaMese(-1),
